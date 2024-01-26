@@ -35,22 +35,44 @@ const updateVehicleLocation = async (pincode, lon, lat, socketId) => {
  * - returns list of socketIds or vehicleIds if query matches
  */
 const getNearbyVehicles = async (pincode, lon, lat) => {
-  //fetching socket ids
-  // console.log('before getNearByVehicles')
-  const res = await redisClient.geoSearch(
-    String(pincode),
-    {
-      longitude: lon,
-      latitude: lat,
-    },
-    {
-      radius: 100,
-      unit: 'm',
-    },
-  )
-  
-  return res
-  // console.log('after nearByVehicles')
-}
+  const finalSockets = []
+  try {
+    console.log(pincode, lon, lat)
+    if (!redisClient) {
+      throw new Error('Redis client not initialized');
+    }
+
+    if (!pincode || isNaN(lon) || isNaN(lat)) {
+      throw new Error('Invalid parameters for geoSearch');
+    }
+
+    const res = await redisClient.geoSearch(
+      String(pincode),
+      {
+        longitude: lon,
+        latitude: lat,
+      },
+      {
+        radius: 100,
+        unit: 'm',
+      }
+    );
+
+    // console.log(`Redis GeoSearch Results: ${res}`);
+    if (res.length >= 0){
+      res.map((id) => {
+        // console.log(id)
+        finalSockets.push(id)
+      })
+      return finalSockets
+    } else {
+      return []
+    }
+  } catch (error) {
+    console.error('Error fetching nearby vehicles:', error.message);
+    return [];
+  }
+};
+
 
 module.exports = { updateVehicleLocation, getNearbyVehicles }

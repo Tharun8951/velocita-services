@@ -51,36 +51,21 @@ io.on('connection', (socket) => {
     console.log(res)
   })
 
-  // Ambulance creating alert
-  // socket.on('create-alert', async function ({ coordinates }) {
-  //   console.log(`{
-  //     type: "ambulance",
-  //     lat: ${coordinates.lat},
-  //     lon: ${coordinates.lon},
-  //     pincode: ${coordinates.pin},
-  //     id: ${socket.id}
-  //   }`);
-
-  //   // Fetch vehicleIds from redis
-  //   const res = await getNearbyVehicles(coordinates.pin, coordinates.lon, coordinates.lat);
-
-  //   // Emit alert to vehicles
-  //   res.map((vehId) => {
-  //     // Emit to each vehicle the alert
-  //     io.to(vehId).emit('amb-alert', 'An ambulance is on the way');
-  //     io.to(socket.id).emit('event-status', 'successfully created event');
-  //     console.log(vehId)
-  //   });
-  // });
+  // temp array variable
+  var arrayCord = []
+  var finalSockets = []
 
   socket.on('create-alert', async function ({ coordinates }) {
-    //origin latitude and longitude
+    // origin latitude and longitude
     const originLat = coordinates.origin.lat
     const originLon = coordinates.origin.lon
 
-    //destination Latitude and Longitude
+    // destination Latitude and Longitude
     const destLat = coordinates.destination.lat
     const destLon = coordinates.destination.lon
+
+    // pincode
+    const originPin = coordinates.pin
 
     // fetching the coordinates between origin and destination
     const resCoordinates = await handleGetListOfCoords(
@@ -88,30 +73,43 @@ io.on('connection', (socket) => {
       originLon,
       destLat,
       destLon,
-      560087
+      560087,
     )
-    
-    
 
     if (resCoordinates.length === 0) {
       console.log('error')
     } else {
       // Process the coordinates array
-      resCoordinates.forEach((coord) => {
+      const promises = resCoordinates.map(async (coord) => {
         const latitude = coord.latitude
         const longitude = coord.longitude
 
-        // Do something with latitude and longitude
-        console.log(`Lat: ${latitude}, Long: ${longitude}`)
-
-        // calling redis getNearByVehicles to all the resCoordinates and sending alerts
-        const res = getNearbyVehicles(coordinates.pin, coordinates.lon, coordinates.lat)
-        console.log(res)
-        
-        
-
+        // console.log(`Long: ${longitude}, Lat: ${latitude}`)
+        arrayCord.push({ long: longitude, lat: latitude })
       })
+
+      await Promise.all(promises)
+      // console.log(arrayCord)
+
+      // calling redis getNearByVehicles to all the resCoordinates and sending alerts
+      const finalSocketsPromises = arrayCord.map(async (coords) => {
+        return getNearbyVehicles(originPin, coords.long, coords.lat)
+      })
+
+      const nestedArrays = await Promise.all(finalSocketsPromises)
+
+      // Flatten the nested arrays into a single array
+      finalSockets = nestedArrays.flat()
+
+      if (finalSockets.length === 0) {
+        console.log('could not find any id')
+      } 
     }
+    finalSockets.forEach((socketId) => {
+      io.to(socketId).emit('amb-alert', 'An ambulance is on the way');
+      io.to(socket.id).emit('event-status', 'successfully created event');
+      console.log(socketId)
+    });
   })
 
   socket.on('amb-loc-upd', async ({ coordinates }) => {
