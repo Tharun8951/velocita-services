@@ -12,7 +12,7 @@ const {
   getNearByAmbulances,
 } = require('./controllers/redisMethods')
 
-const { handleGetListOfCoords } = require('./controllers/externalApi')
+const { handleGetListOfCoords, getRoadCondition } = require('./controllers/externalApi')
 const { realTimeLocationSystem } = require('./controllers/rtls')
 
 const app = express()
@@ -178,6 +178,15 @@ io.on('connection', (socket) => {
       response: res,
     })
     console.log(res)
+  })
+
+  //road status 
+  socket.on('roadStatus', ({ coordinates }) => {
+    console.log(coordinates)
+    const res =  getRoadCondition(coordinates)
+    io.to(socket.id).emit('roadStatusRes', {
+      msg: res
+    })
   })
 })
 

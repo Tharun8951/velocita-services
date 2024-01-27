@@ -33,4 +33,10 @@ const handleGetListOfCoords = async (originLat, originLon, destLat, destLon, pin
     }
 };
 
-module.exports = { handleGetListOfCoords };
+let flag = false;
+const getRoadCondition = () => {
+    flag = !flag;
+    return flag ? "Choose a new route" : "Generate alert"; 
+};
+
+module.exports = { handleGetListOfCoords, getRoadCondition };
