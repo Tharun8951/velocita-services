@@ -3,10 +3,13 @@ const PORT = process.env.PORT || 8081
 const express = require('express')
 const http = require('http')
 const { Server } = require('socket.io')
+const cors = require('cors')
 
 const {
   updateVehicleLocation,
   getNearbyVehicles,
+  updateAmbulanceLocation,
+  getNearByAmbulances,
 } = require('./controllers/redisMethods')
 
 const { handleGetListOfCoords } = require('./controllers/externalApi')
@@ -15,8 +18,16 @@ const { realTimeLocationSystem } = require('./controllers/rtls')
 const app = express()
 const server = http.createServer(app)
 const io = new Server(server, {
-  cors: { origin: '*' },
+  cors: {
+    origin: '*',
+  },
 })
+
+app.use(
+  cors({
+    origin: '*',
+  }),
+)
 
 app.get('/home', (req, res) => {
   res.json({
@@ -26,6 +37,28 @@ app.get('/home', (req, res) => {
 
 io.on('connection', (socket) => {
   console.log(socket.id)
+
+  socket.on('postGetNearbyAmbulance', async ({ values }) => {
+    const lat = values.lat
+    const long = values.long
+    const pin = values.pin
+
+    console.log(lat, long, pin)
+    const getNearByAmbulancesArr = await getNearByAmbulances(pin, long, lat)
+    console.log(getNearByAmbulancesArr)
+
+    if (getNearByAmbulancesArr.length == 0) {
+      io.to(socket.id).emit('postGetNearbyAmbulance-result', {
+        msg: 'could not find any ambulance near you',
+      })
+    } else {
+      // send data to client side
+      io.to(socket.id).emit(
+        'postGetNearbyAmbulance-result',
+        getNearByAmbulancesArr,
+      )
+    }
+  })
 
   // Vehicle updating location
   socket.on('loc-upd', async function ({ coordinates }) {
@@ -45,7 +78,7 @@ io.on('connection', (socket) => {
       socket.id,
     )
     io.to(socket.id).emit('event-status', {
-      msg: 'successfully created event',
+      msg: 'updated vehicle location',
       response: res,
     })
     console.log(res)
@@ -103,13 +136,13 @@ io.on('connection', (socket) => {
 
       if (finalSockets.length === 0) {
         console.log('could not find any id')
-      } 
+      }
     }
     finalSockets.forEach((socketId) => {
-      io.to(socketId).emit('amb-alert', 'An ambulance is on the way');
-      io.to(socket.id).emit('event-status', 'successfully created event');
+      io.to(socketId).emit('amb-alert', 'An ambulance is on the way')
+      io.to(socket.id).emit('event-status', 'successfully created event')
       console.log(socketId)
-    });
+    })
   })
 
   socket.on('amb-loc-upd', async ({ coordinates }) => {
@@ -123,6 +156,28 @@ io.on('connection', (socket) => {
         msg: 'Error updating location',
       })
     }
+  })
+
+  socket.on('upd-amb-live-loc', async ({ coordinates }) => {
+    console.log(`{
+      type: "ambulance",
+      lat: ${coordinates.lat},
+      long: ${coordinates.lon},
+      pincode: ${coordinates.pin},
+      id: ${socket.id}
+    }`)
+    // Store data in redis
+    const res = await updateAmbulanceLocation(
+      coordinates.pin,
+      coordinates.lon,
+      coordinates.lat,
+      socket.id,
+    )
+    io.to(socket.id).emit('event-status', {
+      msg: 'updated ambulance location',
+      response: res,
+    })
+    console.log(res)
   })
 })
 

@@ -24,6 +24,7 @@ const handleGetListOfCoords = async (originLat, originLon, destLat, destLon, pin
         });
         
         // Return the array of coordinates
+        // console.log(coordinates)
         return coordinates;
     } catch (error) {
         console.error('Error fetching data:', error.message);
