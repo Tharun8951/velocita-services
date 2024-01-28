@@ -138,8 +138,9 @@ io.on('connection', (socket) => {
         console.log('could not find any id')
       }
     }
-    finalSockets.forEach((socketId) => {
-      io.to(socketId).emit('amb-alert', 'An ambulance is on the way')
+    console.log(finalSockets)
+    finalSockets.map((socketId) => {
+      io.to(socketId).emit('amb-alert', {lat: originLat,  lon: originLon})
       io.to(socket.id).emit('event-status', 'successfully created event')
       console.log(socketId)
     })

@@ -33,6 +33,8 @@ const handleGetListOfCoords = async (originLat, originLon, destLat, destLon, pin
     }
 };
 
+//this method is used for getting traffic status of a route in order to find whether the ambulance should travel on a route or not
+// !!It is still under construction 
 let flag = false;
 const getRoadCondition = () => {
     flag = !flag;
